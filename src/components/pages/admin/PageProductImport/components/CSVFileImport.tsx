@@ -3,6 +3,7 @@ import Typography from "@mui/material/Typography";
 import Box from "@mui/material/Box";
 
 import axios from "axios";
+import useNotification from "~/components/Notifications/useNotification";
 
 type CSVFileImportProps = {
   url: string;
@@ -11,6 +12,8 @@ type CSVFileImportProps = {
 
 export default function CSVFileImport({ url, title }: CSVFileImportProps) {
   const [file, setFile] = React.useState<File>();
+
+  const { pushNotification } = useNotification();
 
   const onFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const files = e.target.files;
@@ -29,22 +32,34 @@ export default function CSVFileImport({ url, title }: CSVFileImportProps) {
 
     if (!file) return;
 
-    // Get the presigned URL
-    const response = await axios({
-      method: "GET",
-      url,
-      params: {
-        fileName: encodeURIComponent(file.name),
-      },
-    });
-    console.log("File to upload: ", file.name);
-    console.log("Uploading to: ", response.data);
-    const result = await fetch(response.data, {
-      method: "PUT",
-      body: file,
-    });
-    console.log("Result: ", result);
-    setFile(undefined);
+    try {
+      const token = localStorage.getItem("authorization_token");
+      // Get the presigned URL
+      const response = await axios({
+        method: "GET",
+        url,
+        headers: {
+          ...(token && {
+            Authorization: `Basic ${localStorage.getItem(
+              "authorization_token"
+            )}`,
+          }),
+        },
+        params: {
+          fileName: encodeURIComponent(file.name),
+        },
+      });
+      console.log("File to upload: ", file.name);
+      console.log("Uploading to: ", response.data);
+      const result = await fetch(response.data, {
+        method: "PUT",
+        body: file,
+      });
+      console.log("Result: ", result);
+      setFile(undefined);
+    } catch (error: any) {
+      pushNotification({ message: error.message });
+    }
   };
 
   return (
